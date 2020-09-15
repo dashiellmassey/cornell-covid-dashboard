@@ -1,0 +1,29 @@
+# Combine untidy data into a single CSV file
+
+library('tidyverse')
+library('lubridate')
+
+files <- dir('raw_data/')
+
+covid <- c()
+for (file in files) {
+  tmp <- read_csv(paste0('raw_data/', file),
+                  col_names = c('label', 'day', 'N_cases'),
+                  col_types = ('ccc')) %>%
+    filter(day != 'Total') %>%
+    mutate(date = parse_date(paste(day, '2020'),
+                             format = '%d-%b %Y')) %>%
+    mutate(N_cases = as.double(gsub(',','', N_cases))) %>%
+    pivot_wider(names_from = label, values_from = N_cases) %>%
+    rename(N_tests = `Number of tests`, N_student_tests = `Number of student tests`,
+           N_employee_tests = `Number of employee tests`,
+           N_cases = `New Confirmed Positive, Total`) %>%
+    select(-day)
+  
+  covid <- rbind(covid, tmp)
+}
+
+covid %>% distinct() %>%
+  arrange(date) -> covid
+
+write_csv(covid, 'cleaned_covid_data.csv')

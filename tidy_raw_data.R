@@ -11,7 +11,7 @@ for (file in files) {
                   col_names = c('label', 'day', 'N_cases'),
                   col_types = ('ccc')) %>%
     filter(day != 'Total') %>%
-    mutate(date = parse_date(paste(day, '2020'),
+    mutate(dates = parse_date(paste(day, '2020'),
                              format = '%d-%b %Y')) %>%
     mutate(N_cases = as.double(gsub(',','', N_cases))) %>%
     pivot_wider(names_from = label, values_from = N_cases) %>%
@@ -23,7 +23,10 @@ for (file in files) {
   covid <- rbind(covid, tmp)
 }
 
-covid %>% distinct() %>%
-  arrange(date) -> covid
+duplicates_removed <- c()
+for (d in as.list(unique(covid$dates))) {
+  tmp <- covid %>% filter(dates == date(d))
+  duplicates_removed <- rbind(duplicates_removed, tail(tmp, 1))
+}
 
-write_csv(covid, 'cleaned_covid_data.csv')
+write_csv(duplicates_removed, 'cleaned_covid_data.csv')

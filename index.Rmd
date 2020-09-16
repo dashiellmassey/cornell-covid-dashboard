@@ -1,10 +1,10 @@
 ---
 title: "The DashiellBoard: Tracking Cornell's COVID-19 Data"
-date: 'last updated: 9/15/20'
+date: 'last updated: 9/16/20'
 output: 
   flexdashboard::flex_dashboard:
     orientation: rows
-    vertical_layout: fill
+    vertical_layout: scroll
     source_code: embed
 ---
 
@@ -15,12 +15,12 @@ output:
 }
 </style>
 
-```{r setup, message=FALSE, warning=FALSE}
-library(flexdashboard)
-library(tidyverse)
-library(zoo)
-library(lubridate)
-library(plotly)
+```{r setup}
+library(flexdashboard)    # install.packages('flexdashboard')
+library(tidyverse)        # install.packages('tidyverse')
+library(zoo)              # install.packages('zoo')
+library(lubridate)        # install.packages('lubridate')
+library(plotly)           # install.packages('plotly')
 ```
 
 
@@ -29,34 +29,81 @@ library(plotly)
 covid <- read_csv('cleaned_covid_data.csv',
                       col_types = 'Ddddd')
 
-green1 <- c(as.Date('2020-08-17'), as.Date('2020-09-03'))
-yellow1 <- c(as.Date('2020-09-03'),
-                 as.Date(max(covid$date)))
-    
-    
+### Constants
+
+# Threat levels
+green1 <- c(date('2020-08-17'), date('2020-09-03'))
+yellow1 <- c(date('2020-09-03'), date('2020-09-15'))
+green2 <- c(date('2020-09-15'), date(max(covid$dates)))
+
+# Colors
+color_cumulative <- '#A45C40'
+color_14day <- '#C38370'
+color_7day <- '#E4B7A0'
+threat_color_green <- '#4C7B2B'
+threat_color_yellow <- '#F2D21B'
+
+# Icons
+icon_positive <- 'ion-ios-plus-outline'
+icon_test <- 'ion-search'
+```
+
+```{r define-functions}
 # Calculate total within a period
-calculate_period_total <- function(period){
+calculate_period_total <- function(timescale){
   covid %>%
-    filter(date >= date(now()) - period) %>%
-             summarize(total_cases = sum(N_cases), total_tests = sum(N_tests))
+    filter(dates >= date(now()) - timescale) %>%
+             summarize(total_cases = sum(N_cases),
+                       total_tests = sum(N_tests))
 }
 
 # Calculate rolling summary
-calculate_rolling <- function(period, func) {
-  cases <- rollapply(covid$N_cases, period, func)
-  tests <- rollapply(covid$N_tests, period, func)
-  dates <- tail(covid$date, length(cases))
+calculate_rolling <- function(timescale, func) {
+  cases <- rollapply(covid$N_cases, timescale, func)
+  tests <- rollapply(covid$N_tests, timescale, func)
+  dates <- tail(covid$dates, length(cases))
   tibble(dates, cases, tests)
 }
 
 # Calculations for value boxes
 total_positives <- sum(covid$N_cases)
 total_tests <- sum(covid$N_tests)
-cuomo_total <- 3 # must be manually updated
 total_7day <- calculate_period_total(7)
 total_14day <- calculate_period_total(14)
-positivity_rate <- total_7day$total_cases / total_7day$total_tests * 100
+```
 
+```{r plot-elements}
+plot_base <- function(x1, x2, y1, y2) {
+  ggplot(data = NULL) +
+    geom_rect(aes(xmin = x1, xmax = green1[2],
+                  ymin = y1, ymax = y2,
+                  text = 'Threat Level Green: 8/17-9/2'),
+              fill = threat_color_green) +
+    geom_rect(aes(xmin = yellow1[1]-0.5, xmax = yellow1[2] + 0.5,
+                  ymin = y1, ymax = y2,
+                  text = 'Threat Level Yellow: 9/3-9/15'),
+              fill = threat_color_yellow) +
+    geom_rect(aes(xmin = green2[1]-0.5, xmax = x2,
+                  ymin = y1, ymax = y2,
+                  text = 'Threat Level Green: 9/16-present'),
+              fill = threat_color_green) +
+    geom_vline(aes(xintercept = as.numeric(as.Date('2020-09-02'))-0.5,
+                   text = 'Start of surveillance testing'),
+               linetype = 'dotted') + 
+    xlab('Date') +
+    scale_x_date(date_breaks = '2 days', date_labels = '%b %d',
+                 expand = c(0,0), limit = c(x1, x2)) +
+    scale_y_continuous(limits = c(y1, y2), expand = c(0,0)) +
+    theme(axis.text.x = element_text(angle = 45))
+}
+
+convert_to_interactive <- function(plot_name, margin_size) {
+  ggplotly(plot_name, tooltip = 'text') %>%
+  layout(xaxis = list(fixedrange = TRUE),
+         yaxis = list(fixedrange = TRUE),
+         margin = list(b = margin_size)) %>%
+  config(displayModeBar = F)
+}
 ```
 
 Row
@@ -67,8 +114,8 @@ Row
 ```{r cumulative-total}
 valueBox(value = format(total_positives, big.mark = ','),
          caption = 'Total cases (08/17-present)',
-         icon = 'ion-ios-plus-outline', 
-         color = '#A45C40')
+         icon = icon_positive, 
+         color = color_cumulative)
 ```
 
 ### 14 day cases {.value-box}
@@ -78,8 +125,8 @@ valueBox(value = format(total_14day$total_cases, big.mark = ','),
          caption = paste0('Cases in the past 2 weeks (',
                           format(date(now())-14, '%m/%d'), '-',
                           format(date(now())-1, '%m/%d'), ')'),
-         icon = 'ion-ios-plus-outline', 
-         color = '#C38370')
+         icon = icon_positive, 
+         color = color_14day)
 ```
 
 ### 7 day cases {.value-box}
@@ -89,8 +136,8 @@ valueBox(value = total_7day$total_cases,
          caption = paste0('Cases this week (',
                           format(date(now())-7, '%m/%d'), '-',
                           format(date(now())-1, '%m/%d'), ')'),       
-         icon = 'ion-ios-plus-outline', 
-         color = '#E4B7A0')
+         icon = icon_positive, 
+         color = color_7day)
 ```
 
 ### 7 day tests {.value-box}
@@ -100,316 +147,180 @@ valueBox(value = format(total_7day$total_tests, big.mark = ','),
          caption = paste0('Tests this week (',
                           format(date(now())-7, '%m/%d'), '-',
                           format(date(now())-1, '%m/%d'), ')'),         
-         icon = 'ion-search', 
-         color = '#E4B7A0')
+         icon = icon_test, 
+         color = color_7day)
 ```
 
 Row {.tabset}
 -----------------------------------------------------------------------
 
 ### Total cases, cumulative
-```{r plot-cumulative, warning=FALSE}
-plot_cumulative <- ggplot(data = covid) +
-        geom_rect(data = NULL,
-                  aes(xmin = green1[1]-0.5, xmax = green1[2],
-                      ymin = -5, ymax = total_positives + 15,
-                      text = 'Threat Level Green: 8/17-9/2'),
-                  fill = "#4C7B2B") +
-        geom_rect(data = NULL,
-                  aes(xmin = yellow1[1]-0.5, xmax = yellow1[2] + 0.5,
-                      ymin = -5, ymax = total_positives + 15,
-                      text = 'Threat Level Yellow: 9/3-present'),
-                  fill = "#F2D21B") +
-        geom_point(aes(x = date, y = cumsum(N_cases), group = 1,
+```{r plot-cumulative}
+base_plot <- plot_base(min(covid$dates)-0.5, max(covid$dates)+0.5,
+                       -5, total_positives + 15)
+
+plot_cumulative <- base_plot +
+        geom_point(data = covid, aes(x = dates, y = cumsum(N_cases),
                        text = paste('Date:', 
-                                    format(date(date),'%m/%d'),
+                                    format(date(dates),'%m/%d'),
                                     '<br>Cases:', cumsum(N_cases))),
                         color = 'black') +
-        geom_vline(aes(xintercept = as.numeric(as.Date('2020-09-02'))
-                       -0.5, text = 'Start of surveillance testing'),
-                   linetype = 'dotted') + 
-        xlab('Date') +
-        ylab('Cumulative Total Positive Tests') +
-        scale_x_date(date_breaks = '2 days', date_labels = '%b %d',
-                     expand = c(0,0)) +
-        scale_y_continuous(limits = c(-5, total_positives + 15),
-                           expand = c(0,0))
+        ylab('Cumulative Total Positive Tests')
+        
     
-ggplotly(plot_cumulative, tooltip = 'text') %>%
-  layout(xaxis = list(fixedrange = TRUE)) %>%
-   layout(yaxis = list(fixedrange = TRUE)) %>%
-   config(displayModeBar = F)
+convert_to_interactive(plot_cumulative, 0)
 ```
 
 ### Positives per day
-```{r plot-histogram, warning=FALSE}
+```{r plot-histogram}
 
 plot_histogram <- ggplot(covid) +
-  geom_bar(aes(x = as.Date(date), y = N_cases,
-               text = paste('Date:', format(date(date),'%m/%d'),
-                            '<br>Cases:', N_cases)), stat = 'identity',
-           color = '#145DA0', fill = '#145DA0') +
+  geom_bar(aes(x = as.Date(dates), y = N_cases,
+               text = paste('Date:', format(date(dates),'%m/%d'),
+                            '<br>Cases:', N_cases)),
+           stat = 'identity', color = '#145DA0', fill = '#145DA0') +
         xlab('Date') +
         ylab('Positive Tests Per Day') +
         scale_x_date(date_breaks = '2 days', date_labels = '%b %d',
-                     expand = c(0,0)) 
-   
-ggplotly(plot_histogram, tooltip = 'text') %>%
-  layout(xaxis = list(fixedrange = TRUE)) %>%
-   layout(yaxis = list(fixedrange = TRUE)) %>%
-   config(displayModeBar = F)
+                     expand = c(0,0)) +
+        theme(axis.text.x = element_text(angle = 45))
+
+convert_to_interactive(plot_histogram, 0)
 ```
-    
+
 ### Cases per week
 **Total cases in a rolling 7-day period.**
-```{r plot-rolling-7d-sum, warning=FALSE}
+```{r plot-rolling-7d-sum}
 rolling <- calculate_rolling(7, sum)
-plot_rolling_7d_sum <- ggplot(data = rolling) +
-        geom_rect(data = NULL,
-                  aes(xmin = min(dates)-0.5, xmax = green1[2],
-                      ymin = -5, ymax = max(cases) + 15,
-                      text = 'Threat Level Green: 8/17-9/2'),
-                  fill = "#4C7B2B") +
-        geom_rect(data = NULL,
-                  aes(xmin = yellow1[1]-0.5, xmax = max(dates) + 0.5,
-                      ymin = -5, ymax = max(cases) + 15,
-                      text = 'Threat Level Yellow: 9/3-present'),
-                  fill = "#F2D21B") +
-        geom_point(aes(x = dates, y = cases, group = 1,
-                       text = paste('Dates:', 
+
+base_plot <- plot_base(min(rolling$dates)-0.5, max(rolling$dates)+0.5,
+                       -5, max(rolling$cases) + 15)
+
+plot_rolling_7d_sum <- base_plot +
+  geom_point(data = rolling, aes(x = dates, y = cases,
+                                 text = paste('Dates:',
                                     paste0(format(date(dates)-6,'%m/%d'),
-                                           '-', 
+                                           '-',
                                            format(date(dates),'%m/%d')),
                                     '<br>Cases/week:', cases)),
-                        color = 'black') +
-        geom_vline(aes(xintercept = as.numeric(as.Date('2020-09-02'))
-                       -0.5, text = 'Start of surveillance testing'),
-                   linetype = 'dotted') + 
-        xlab('Date') +
-        ylab('Total Positive Tests, 7 day period') +
-        scale_x_date(date_breaks = '2 days', date_labels = '%b %d',
-                     expand = c(0,0),
-                     limits = c(min(rolling$dates)-0.5,
-                                max(rolling$dates)+0.5)) +
-        scale_y_continuous(limits = c(-5, max(rolling$cases) + 15),
-                           expand = c(0,0))
-    
-ggplotly(plot_rolling_7d_sum, tooltip = 'text') %>%
-  layout(xaxis = list(fixedrange = TRUE)) %>%
-   layout(yaxis = list(fixedrange = TRUE)) %>%
-   config(displayModeBar = F)
+             color = 'black') +
+  ylab('Total Positive Tests, 7 day period')
 
+convert_to_interactive(plot_rolling_7d_sum, 90)
 ```
 
 ### Average cases/day (7 day)
 **Mean cases-per-day in a rolling 7-day period.**
-```{r plot-rolling-7d-mean, warning=FALSE}
+```{r plot-rolling-7d-mean}
 rolling <- calculate_rolling(7, mean)
-plot_rolling_7d_mean <- ggplot(data = rolling) +
-        geom_rect(data = NULL,
-                  aes(xmin = min(dates)-0.5, xmax = green1[2],
-                      ymin = -5, ymax = max(cases) + 3,
-                      text = 'Threat Level Green: 8/17-9/2'),
-                  fill = "#4C7B2B") +
-        geom_rect(data = NULL,
-                  aes(xmin = yellow1[1]-0.5, xmax = max(dates) + 0.5,
-                      ymin = -5, ymax = max(cases) + 3,
-                      text = 'Threat Level Yellow: 9/3-present'),
-                  fill = "#F2D21B") +
-        geom_point(aes(x = dates, y = cases, group = 1,
-                       text = paste('Dates:', 
-                                    paste0(format(date(dates)-6,'%m/%d'),
+
+base_plot <- plot_base(min(rolling$dates)-0.5, max(rolling$dates)+0.5,
+                       -5, max(rolling$cases) + 2)
+
+plot_rolling_7d_mean <- base_plot +
+  geom_point(data = rolling, aes(x = dates, y = cases,
+                                 text = paste('Dates:',
+                                      paste0(format(date(dates)-6,'%m/%d'),
                                            '-', 
                                            format(date(dates),'%m/%d')),
                                     '<br>Cases/day:', round(cases, 2))),
-                        color = 'black') +
-        geom_vline(aes(xintercept = as.numeric(as.Date('2020-09-02'))
-                       -0.5, text = 'Start of surveillance testing'),
-                   linetype = 'dotted') + 
-        xlab('Date') +
-        ylab('Mean Positive Tests/Day, 7 day period') +
-        scale_x_date(date_breaks = '2 days', date_labels = '%b %d',
-                     expand = c(0,0),
-                     limits = c(min(rolling$dates)-0.5,
-                                max(rolling$dates)+0.5)) +
-        scale_y_continuous(limits = c(-5, max(rolling$cases) + 3),
-                           expand = c(0,0))
-    
-ggplotly(plot_rolling_7d_mean, tooltip = 'text') %>%
-  layout(xaxis = list(fixedrange = TRUE)) %>%
-   layout(yaxis = list(fixedrange = TRUE)) %>%
-   config(displayModeBar = F)
-
+             color = 'black') +
+  ylab('Mean Positive Tests/Day, 7 day period')
+     
+convert_to_interactive(plot_rolling_7d_mean, 90)
 ```
 
 ### Positivity rate (7 day)
 **Positivity rate (total positives / total tests) in a rolling 7-day period.**
-```{r plot-rolling-7d-positivity, warning=FALSE}
+```{r plot-rolling-7d-positivity}
+
 rolling <- calculate_rolling(7, sum) %>%
   mutate(positivity_rate = rolling$cases / rolling$tests * 100)
 
-plot_rolling_7d_positivity <- ggplot(data = rolling) +
-        geom_rect(data = NULL,
-                  aes(xmin = min(dates)-0.5, xmax = green1[2],
-                      ymin = 0, ymax = 0.75,
-                      text = 'Threat Level Green: 8/17-9/2'),
-                  fill = "#4C7B2B") +
-        geom_rect(data = NULL,
-                  aes(xmin = yellow1[1]-0.5, xmax = max(dates) + 0.5,
-                      ymin = 0, ymax = 0.75,
-                      text = 'Threat Level Yellow: 9/3-present'),
-                  fill = "#F2D21B") +
-        geom_point(aes(x = dates, y = positivity_rate, group = 1,
-                       text = paste('Dates:', 
-                                    paste0(format(date(dates)-6,'%m/%d'),
-                                           '-', 
-                                           format(date(dates),'%m/%d')),
-                                    '<br>Positivity rate:', 
-                                    paste0(round(positivity_rate, 2),
-                                           '%'))),
-                        color = 'black') +
-        geom_vline(aes(xintercept = as.numeric(as.Date('2020-09-02'))
-                       -0.5, text = 'Start of surveillance testing'),
-                   linetype = 'dotted') + 
-        xlab('Date') +
-        ylab('Positivity Rate, 7 day period') +
-        scale_x_date(date_breaks = '2 days', date_labels = '%b %d',
-                     expand = c(0,0),
-                     limits = c(min(rolling$dates)-0.5,
-                                max(rolling$dates)+0.5)) +
-        scale_y_continuous(limits = c(0, 0.75),
-                           expand = c(0,0))
-    
-ggplotly(plot_rolling_7d_positivity, tooltip = 'text') %>%
-  layout(xaxis = list(fixedrange = TRUE)) %>%
-   layout(yaxis = list(fixedrange = TRUE)) %>%
-   config(displayModeBar = F)
+base_plot <- plot_base(min(rolling$dates)-0.5, max(rolling$dates)+0.5,
+                       0, max(rolling$positivity_rate) + 0.2)
 
+plot_rolling_7d_positivity <- base_plot +
+  geom_point(data = rolling,
+             aes(x = dates, y = positivity_rate,
+                 text = paste('Dates:',
+                              paste0(format(date(dates)-6,'%m/%d'),
+                                     '-', 
+                                     format(date(dates),'%m/%d')),
+                              '<br>Positivity rate:',
+                              paste0(round(positivity_rate, 2),
+                                     '%'))),
+             color = 'black') +
+  ylab('Positivity Rate, 7 day period')
+  
+convert_to_interactive(plot_rolling_7d_positivity, 90)
 ```
 
 ### Cases per 14 days
 **Total cases in a rolling 14-day period.**
-```{r plot-rolling-14d-sum, warning=FALSE}
+```{r plot-rolling-14d-sum}
 rolling <- calculate_rolling(14, sum)
-plot_rolling_14d_sum <- ggplot(data = rolling) +
-        geom_rect(data = NULL,
-                  aes(xmin = min(dates)-0.5, xmax = green1[2],
-                      ymin = -5, ymax = max(cases) + 15,
-                      text = 'Threat Level Green: 8/17-9/2'),
-                  fill = "#4C7B2B") +
-        geom_rect(data = NULL,
-                  aes(xmin = yellow1[1]-0.5, xmax = max(dates) + 0.5,
-                      ymin = -5, ymax = max(cases) + 15,
-                      text = 'Threat Level Yellow: 9/3-present'),
-                  fill = "#F2D21B") +
-        geom_point(aes(x = dates, y = cases, group = 1,
-                       text = paste('Dates:', 
-                                    paste0(format(date(dates)-13,'%m/%d'),
-                                           '-', 
-                                           format(date(dates),'%m/%d')),
-                                    '<br>Cases:', cases)),
-                        color = 'black') +
-        geom_vline(aes(xintercept = as.numeric(as.Date('2020-09-02'))
-                       -0.5, text = 'Start of surveillance testing'),
-                   linetype = 'dotted') + 
-        xlab('Date') +
-        ylab('Total Positive Tests, 14 day period') +
-        scale_x_date(date_breaks = '2 days', date_labels = '%b %d',
-                     expand = c(0,0),
-                     limits = c(min(rolling$dates)-0.5,
-                                max(rolling$dates)+0.5)) +
-        scale_y_continuous(limits = c(-5, max(rolling$cases) + 15),
-                           expand = c(0,0))
-    
-ggplotly(plot_rolling_14d_sum, tooltip = 'text') %>%
-  layout(xaxis = list(fixedrange = TRUE)) %>%
-   layout(yaxis = list(fixedrange = TRUE)) %>%
-   config(displayModeBar = F)
 
+base_plot <- plot_base(min(rolling$dates)-0.5, max(rolling$dates)+0.5,
+                       -5, max(rolling$cases) + 15)
+
+plot_rolling_14d_sum <- base_plot +
+  geom_point(data = rolling,
+             aes(x = dates, y = cases,
+                 text = paste('Dates:',
+                              paste0(format(date(dates)-13,'%m/%d'),
+                                     '-', 
+                                     format(date(dates),'%m/%d')),
+                              '<br>Cases:', cases)),
+             color = 'black') +
+  ylab('Total Positive Tests, 14 day period')
+  
+convert_to_interactive(plot_rolling_14d_sum, 90)
 ```
 
 ### Average cases/day (14 day)
 **Mean cases-per-day in a rolling 14-day period.**
-```{r plot-rolling-14d-mean, warning=FALSE}
+```{r plot-rolling-14d-mean}
 rolling <- calculate_rolling(14, mean)
-plot_rolling_14d_mean <- ggplot(data = rolling) +
-        geom_rect(data = NULL,
-                  aes(xmin = min(dates)-0.5, xmax = green1[2],
-                      ymin = -5, ymax = max(cases) + 3,
-                      text = 'Threat Level Green: 8/17-9/2'),
-                  fill = "#4C7B2B") +
-        geom_rect(data = NULL,
-                  aes(xmin = yellow1[1]-0.5, xmax = max(dates) + 0.5,
-                      ymin = -5, ymax = max(cases) + 3,
-                      text = 'Threat Level Yellow: 9/3-present'),
-                  fill = "#F2D21B") +
-        geom_point(aes(x = dates, y = cases, group = 1,
-                        text = paste('Dates:', 
-                                    paste0(format(date(dates)-13,'%m/%d'),
-                                           '-', 
-                                           format(date(dates),'%m/%d')),
-                                    '<br>Cases/day:', round(cases, 2))),
-                        color = 'black') +
-        geom_vline(aes(xintercept = as.numeric(as.Date('2020-09-02'))
-                       -0.5, text = 'Start of surveillance testing'),
-                   linetype = 'dotted') + 
-        xlab('Date') +
-        ylab('Mean Positive Tests/Day, 14 day period') +
-        scale_x_date(date_breaks = '2 days', date_labels = '%b %d',
-                     expand = c(0,0),
-                     limits = c(min(rolling$dates)-0.5,
-                                max(rolling$dates)+0.5)) +
-        scale_y_continuous(limits = c(-5, max(rolling$cases) + 3),
-                           expand = c(0,0))
-    
-ggplotly(plot_rolling_14d_mean, tooltip = 'text') %>%
-  layout(xaxis = list(fixedrange = TRUE)) %>%
-   layout(yaxis = list(fixedrange = TRUE)) %>%
-   config(displayModeBar = F)
 
+base_plot <- plot_base(min(rolling$dates)-0.5, max(rolling$dates)+0.5,
+                       -5, max(rolling$cases) + 2)
+
+plot_rolling_14d_mean <- base_plot +
+  geom_point(data = rolling,
+             aes(x = dates, y = cases,
+                 text = paste('Dates:',
+                              paste0(format(date(dates)-13,'%m/%d'),
+                                     '-', 
+                                     format(date(dates),'%m/%d')),
+                              '<br>Cases/day:', round(cases, 2))),
+             color = 'black') +
+  ylab('Mean Positive Tests/Day, 14 day period')
+  
+convert_to_interactive(plot_rolling_14d_mean, 90)
 ```
 
 ### Positivity rate (14 day)
 **Positivity rate (total positives / total tests) in a rolling 14-day period.**
-```{r plot-rolling-14d-positivity, warning=FALSE}
+```{r plot-rolling-14d-positivity}
 rolling <- calculate_rolling(14, sum) %>%
   mutate(positivity_rate = rolling$cases / rolling$tests * 100)
 
-plot_rolling_14d_positivity <- ggplot(data = rolling) +
-        geom_rect(data = NULL,
-                  aes(xmin = min(dates)-0.5, xmax = green1[2],
-                      ymin = 0, ymax = 0.4,
-                      text = 'Threat Level Green: 8/17-9/2'),
-                  fill = "#4C7B2B") +
-        geom_rect(data = NULL,
-                  aes(xmin = yellow1[1]-0.5, xmax = max(dates) + 0.5,
-                      ymin = 0, ymax = 0.4,
-                      text = 'Threat Level Yellow: 9/3-present'),
-                  fill = "#F2D21B") +
-        geom_point(aes(x = dates, y = positivity_rate, group = 1,
-                       text = paste('Dates:', 
-                                    paste0(format(date(dates)-13,'%m/%d'),
-                                           '-', 
-                                           format(date(dates),'%m/%d')),
-                                    '<br>Positivity rate:', 
-                                    paste0(round(positivity_rate, 2),
-                                           '%'))),
-                        color = 'black') +
-        geom_vline(aes(xintercept = as.numeric(as.Date('2020-09-02'))
-                       -0.5, text = 'Start of surveillance testing'),
-                   linetype = 'dotted') + 
-        xlab('Date') +
-        ylab('Positivity Rate, 14 day period') +
-        scale_x_date(date_breaks = '2 days', date_labels = '%b %d',
-                     expand = c(0,0),
-                     limits = c(min(rolling$dates)-0.5,
-                                max(rolling$dates)+0.5)) +
-        scale_y_continuous(limits = c(0, 0.4),
-                           expand = c(0,0))
-    
-ggplotly(plot_rolling_14d_positivity, tooltip = 'text') %>%
-  layout(xaxis = list(fixedrange = TRUE)) %>%
-   layout(yaxis = list(fixedrange = TRUE)) %>%
-   config(displayModeBar = F)
+base_plot <- plot_base(min(rolling$dates)-0.5, max(rolling$dates)+0.5,
+                       0, max(rolling$positivity_rate) + 0.2)
 
+plot_rolling_14d_positivity <- base_plot +
+     geom_point(data = rolling,
+                aes(x = dates, y = positivity_rate,
+                    text = paste('Dates:',
+                                 paste0(format(date(dates)-13,'%m/%d'),
+                                        '-', 
+                                        format(date(dates),'%m/%d')),
+                                 '<br>Positivity rate:',
+                                 paste0(round(positivity_rate, 2),
+                                        '%'))),
+                color = 'black') +
+  ylab('Positivity Rate, 14 day period')
+
+convert_to_interactive(plot_rolling_14d_positivity, 90)
 ```

@@ -1,6 +1,6 @@
 ---
 title: "The DashiellBoard: Tracking Cornell's COVID-19 Data"
-date: 'last updated: 9/16/20'
+date: 'last updated: 9/17/20'
 output: 
   flexdashboard::flex_dashboard:
     orientation: rows
@@ -27,7 +27,7 @@ library(plotly)           # install.packages('plotly')
 ```{r import}
 # Data import
 covid <- read_csv('cleaned_covid_data.csv',
-                      col_types = 'Ddddd')
+                  col_types = 'Ddddd')
 
 ### Constants
 

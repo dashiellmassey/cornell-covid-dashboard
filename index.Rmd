@@ -238,7 +238,7 @@ rolling <- calculate_rolling(7, sum) %>%
   mutate(positivity_rate = rolling$cases / rolling$tests * 100)
 
 base_plot <- plot_base(min(rolling$dates)-0.5, max(rolling$dates)+0.5,
-                       0, max(rolling$positivity_rate) + 0.2)
+                       -0.05, max(rolling$positivity_rate) + 0.2)
 
 plot_rolling_7d_positivity <- base_plot +
   geom_point(data = rolling,

@@ -1,6 +1,6 @@
 ---
 title: "The DashiellBoard: Tracking Cornell's COVID-19 Data"
-date: 'last updated: 10/01/20'
+date: 'last updated: 10/02/20'
 output: 
   flexdashboard::flex_dashboard:
     orientation: rows
@@ -194,7 +194,7 @@ convert_to_interactive(plot_histogram, 0)
 rolling <- calculate_rolling(7, sum)
 
 base_plot <- plot_base(min(rolling$dates)-0.5, max(rolling$dates)+0.5,
-                       -5, max(rolling$cases) + 15)
+                       -2, max(rolling$cases) + 15)
 
 plot_rolling_7d_sum <- base_plot +
   geom_point(data = rolling, aes(x = dates, y = cases,
@@ -215,7 +215,7 @@ convert_to_interactive(plot_rolling_7d_sum, 90)
 rolling <- calculate_rolling(7, mean)
 
 base_plot <- plot_base(min(rolling$dates)-0.5, max(rolling$dates)+0.5,
-                       -5, max(rolling$cases) + 2)
+                       0, max(rolling$cases) + 2)
 
 plot_rolling_7d_mean <- base_plot +
   geom_point(data = rolling, aes(x = dates, y = cases,
@@ -262,7 +262,7 @@ convert_to_interactive(plot_rolling_7d_positivity, 90)
 rolling <- calculate_rolling(14, sum)
 
 base_plot <- plot_base(min(rolling$dates)-0.5, max(rolling$dates)+0.5,
-                       -5, max(rolling$cases) + 15)
+                       -2, max(rolling$cases) + 15)
 
 plot_rolling_14d_sum <- base_plot +
   geom_point(data = rolling,
@@ -284,7 +284,7 @@ convert_to_interactive(plot_rolling_14d_sum, 90)
 rolling <- calculate_rolling(14, mean)
 
 base_plot <- plot_base(min(rolling$dates)-0.5, max(rolling$dates)+0.5,
-                       -5, max(rolling$cases) + 2)
+                       0, max(rolling$cases) + 2)
 
 plot_rolling_14d_mean <- base_plot +
   geom_point(data = rolling,

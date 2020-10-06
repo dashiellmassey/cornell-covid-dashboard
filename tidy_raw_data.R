@@ -30,3 +30,4 @@ for (d in as.list(unique(covid$dates))) {
 }
 
 write_csv(duplicates_removed, 'cleaned_covid_data.csv')
+

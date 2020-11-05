@@ -18,7 +18,8 @@ for (file in files) {
     rename(N_tests = `Number of tests`, N_student_tests = `Number of student tests`,
            N_employee_tests = `Number of employee tests`,
            N_cases = `New Confirmed Positive, Total`) %>%
-    select(-day)
+    select(-day) %>%
+    replace_na(list(N_tests = 0, N_employee_tests = 0, N_cases = 0))
   
   covid <- rbind(covid, tmp)
 }

@@ -11,8 +11,7 @@ for (file in files) {
                   col_names = c('label', 'day', 'N_cases'),
                   col_types = ('ccc')) %>%
     filter(day != 'Total') %>%
-    mutate(dates = parse_date(paste(day, '2020'),
-                             format = '%d-%b %Y')) %>%
+    mutate(dates = parse_date(day, format = '%m/%d/%Y')) %>%
     mutate(N_cases = as.double(gsub(',','', N_cases))) %>%
     pivot_wider(names_from = label, values_from = N_cases) %>%
     rename(N_tests = `Number of tests`, N_student_tests = `Number of student tests`,

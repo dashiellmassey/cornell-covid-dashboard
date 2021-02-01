@@ -1,6 +1,6 @@
 ---
 title: "The DashiellBoard: Tracking Cornell's COVID-19 Data"
-date: 'last updated: 01/29/21'
+date: 'last updated: 02/01/21'
 output: 
   flexdashboard::flex_dashboard:
     orientation: rows
@@ -101,7 +101,7 @@ plot_base <- function(x1, x2, y1, y2) {
                    text = 'Start of surveillance testing'),
                linetype = 'dotted') + 
     xlab('Date') +
-    scale_x_date(date_breaks = '3 days', date_labels = '%b %d',
+    scale_x_date(date_breaks = '5 days', date_labels = '%b %d',
                  expand = c(0,0), limit = c(x1, x2)) +
     scale_y_continuous(limits = c(y1, y2), expand = c(0,0)) +
     theme(axis.text.x = element_text(angle = 45))

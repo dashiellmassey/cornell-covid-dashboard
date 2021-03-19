@@ -1,6 +1,6 @@
 ---
 title: "The DashiellBoard: Tracking Cornell's COVID-19 Data"
-date: 'last updated: 03/18/21'
+date: 'last updated: 03/19/21'
 output: 
   flexdashboard::flex_dashboard:
     orientation: rows
@@ -38,7 +38,8 @@ green2 <- c(date('2020-09-15'), date('2020-11-12'))
 yellow2 <- c(date('2020-11-12'), date('2020-11-18'))
 green3 <- c(date('2020-11-18'), date('2021-02-03'))
 yellow3 <- c(date('2021-02-04'), date('2021-02-21'))
-green4 <- c(date('2021-02-21'), date(max(covid$dates)))
+green4 <- c(date('2021-02-21'), date('2021-03-18'))
+yellow4 <- c(date('2021-03-18'), date(max(covid$dates)))
 
 # Colors
 color_cumulative <- '#A45C40'
@@ -103,10 +104,14 @@ plot_base <- function(x1, x2, y1, y2) {
                   ymin = y1, ymax = y2,
                   text = 'Threat Level Yellow: 02/04-02/21'),
               fill = threat_color_yellow) +
-    geom_rect(aes(xmin = green4[1]-0.5, xmax = x2,
+    geom_rect(aes(xmin = green4[1]-0.5, xmax = green4[2] + 0.5,
                   ymin = y1, ymax = y2,
-                  text = 'Threat Level Green: 02/22-present'),
+                  text = 'Threat Level Green: 02/22-3/18'),
               fill = threat_color_green) +
+    geom_rect(aes(xmin = yellow4[1]-0.5, xmax = x2,
+                  ymin = y1, ymax = y2,
+                  text = 'Threat Level Yellow: 03/19-present'),
+              fill = threat_color_yellow) +
     geom_vline(aes(xintercept = as.numeric(as.Date('2020-09-02'))-0.5,
                    text = 'Start of surveillance testing'),
                linetype = 'dotted') + 
@@ -201,7 +206,7 @@ plot_histogram <- ggplot(covid) +
            stat = 'identity', color = '#145DA0', fill = '#145DA0') +
         xlab('Date') +
         ylab('Positive Tests Per Day') +
-        scale_x_date(date_breaks = '2 days', date_labels = '%b %d',
+        scale_x_date(date_breaks = '5 days', date_labels = '%b %d',
                      expand = c(0,0)) +
         theme(axis.text.x = element_text(angle = 45))
 

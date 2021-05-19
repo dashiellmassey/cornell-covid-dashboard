@@ -1,6 +1,6 @@
 ---
 title: "The DashiellBoard: Tracking Cornell's COVID-19 Data"
-date: 'last updated: 05/18/21'
+date: 'last updated: 05/19/21'
 output: 
   flexdashboard::flex_dashboard:
     orientation: rows
